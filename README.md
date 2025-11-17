@@ -1,7 +1,7 @@
 # genie-in-the-bottle
 As of November 2025, leading labs in Artificial Intelligence are in an arms race. Whoever gets to build AGI the first wins big. At the same time, AI also happens to be the most powerful and consequential invention humanity ever made. How come? Because no other tool has the ability to process information and make its own independent decisions, including the decision to improve itself or to eliminate factors it considers as hindrances.
 
-There are two risks that emerge out of AI research that can affect civilisation in enormous proportions - think at the scale of a world war, the 2008 financial crisis, or the Covid pandemic. And these are conservative estimates. At it's worst, AI could extinguish human civilisation and all other life on earth. Specifically, there are two classes of risk that emerge here:
+There are risks that emerge out of AI research that can affect civilisation in enormous proportions - think at the scale of a world war, the 2008 financial crisis, or the Covid pandemic. And these are conservative estimates. At it's worst, AI could extinguish human civilisation and all other life on earth. Specifically, there are two classes of risk that emerge here:
 
 1. A bad actor using AI maliciously - a nation-state using AI to attack another nation's energy grid, central healthcare system etc
 
