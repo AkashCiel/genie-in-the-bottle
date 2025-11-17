@@ -1,0 +1,14 @@
+[project]
+name = "genie-in-the-bottle"
+version = "0.1.0"
+description = "Scripts for posting AI risk updates to X"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "python-dotenv",
+    "tweepy",
+]
+
+[tool.uv]
+dev-dependencies = []
+
