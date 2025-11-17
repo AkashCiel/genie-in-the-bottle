@@ -10,5 +10,3 @@ There are risks that emerge out of AI research that can affect civilisation in e
 Collectively, we are not sufficiently alarmed by these developments. This is partly due to the fact that so much else is competing for our attention. News developments are scattered and probably not as sexy as news about the party tricks latest AI models can pull off.
 
 This repository tries to solve this problem. It will collect all relevant news and developments, focus them into consumable chunks of information, and post on social media.
-
-Tracking AI associated risks - abuse by bad actors and the alignment problem
