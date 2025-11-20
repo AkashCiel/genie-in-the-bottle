@@ -1,0 +1,21 @@
+{
+  "functions": {
+    "api/webhook_juggernaut.py": {
+      "runtime": "python3.9"
+    },
+    "api/webhook_telegram.py": {
+      "runtime": "python3.9"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/webhook/juggernaut",
+      "destination": "/api/webhook_juggernaut.py"
+    },
+    {
+      "source": "/api/webhook/telegram",
+      "destination": "/api/webhook_telegram.py"
+    }
+  ]
+}
+

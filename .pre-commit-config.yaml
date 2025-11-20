@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: update-requirements
+        name: Update requirements.txt from pyproject.toml
+        entry: bash -c 'uv export --format requirements-txt > requirements.txt'
+        language: system
+        files: ^pyproject\.toml$
+        always_run: false
+        pass_filenames: false
+
