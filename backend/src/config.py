@@ -73,11 +73,11 @@ class Config:
 
     # Neon Database Configuration
     @property
-    def external_db_url(self) -> str:
+    def database_url(self) -> str:
         """Neon database connection URL."""
-        url = os.getenv("EXTERNAL_DB_URL")
+        url = os.getenv("DATABASE_URL")
         if not url:
-            raise ValueError("EXTERNAL_DB_URL environment variable is required")
+            raise ValueError("DATABASE_URL environment variable is required")
         return url
 
 

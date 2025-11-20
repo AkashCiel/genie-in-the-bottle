@@ -16,7 +16,7 @@ def get_connection() -> Iterator[psycopg2.extensions.connection]:
     """Context manager that yields a psycopg2 connection to the Neon database."""
     conn = None
     try:
-        conn = psycopg2.connect(config.external_db_url)
+        conn = psycopg2.connect(config.database_url)
         yield conn
     finally:
         if conn is not None:
