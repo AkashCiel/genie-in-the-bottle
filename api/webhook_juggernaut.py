@@ -8,8 +8,8 @@ from src.config import config
 from src.database.external_db import fetch_articles_by_user_and_date
 from src.database.internal_db import create_tweet_record, update_telegram_message_id
 from src.openai_client import OpenAIClient
-from src.telegram.bot import send_tweet_for_approval
-from src.tweet_generation.composer import generate_tweet_from_article
+from src.telegram.bot import send_status_notification, send_tweet_for_approval
+from src.tweet_generation.composer import generate_tweets_batch
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -60,46 +60,76 @@ def handler(request: Dict[str, Any]) -> Dict[str, Any]:
         # Initialize OpenAI client
         openai_client = OpenAIClient()
 
-        # Process each article
-        processed_count = 0
-        for article in articles:
+        # Generate tweets in batch
+        try:
+            generated_tweets = generate_tweets_batch(articles, openai_client)
+        except Exception as e:
+            logger.error(f"Batch tweet generation failed: {e}")
+            # Send failure notification to Telegram
+            error_message = (
+                f"❌ Batch tweet generation failed\n\n"
+                f"User ID: {user_id}\n"
+                f"Created At: {created_at}\n"
+                f"Error: {str(e)}"
+            )
             try:
-                # Generate tweet
-                tweet_text = generate_tweet_from_article(article, openai_client)
+                send_status_notification(error_message)
+            except Exception as telegram_error:
+                logger.error(f"Failed to send Telegram notification: {telegram_error}")
+            return {
+                "statusCode": 500,
+                "body": json.dumps({"error": "Batch tweet generation failed", "details": str(e)}),
+            }
+
+        # Create a mapping of article_id to article data for quick lookup
+        article_map = {article.get("id", ""): article for article in articles}
+
+        # Process each generated tweet
+        processed_count = 0
+        for tweet_data in generated_tweets:
+            try:
+                article_id = tweet_data.get("article_id", "")
+                tweet_text = tweet_data.get("tweet_text", "")
+
+                # Find matching article data
+                article = article_map.get(article_id)
+                if not article:
+                    logger.warning(f"Article ID mismatch: {article_id} not found in fetched articles")
+                    continue
 
                 # Create tweet record in internal DB (placeholder)
                 record_id = create_tweet_record(
-                    article_id=article.get("id", ""),
+                    article_id=article_id,
                     article_title=article.get("title", ""),
                     tweet_text=tweet_text,
                 )
 
                 # Send to Telegram for approval
                 telegram_message_id = send_tweet_for_approval(
-                    article_summary=article.get("trailText", ""),
+                    article_summary=article.get("article_summary", ""),
                     tweet_text=tweet_text,
-                    article_id=article.get("id", ""),
+                    article_id=article_id,
                 )
 
                 # Update record with Telegram message ID (placeholder)
                 update_telegram_message_id(record_id, telegram_message_id)
 
                 processed_count += 1
-                logger.info(f"Processed article {article.get('id')} (record_id={record_id})")
+                logger.info(f"Processed article {article_id} (record_id={record_id})")
 
             except Exception as e:
-                logger.error(f"Failed to process article {article.get('id', 'unknown')}: {e}")
-                # Continue processing other articles
+                logger.error(f"Failed to process tweet for article_id={tweet_data.get('article_id', 'unknown')}: {e}")
+                # Continue processing other tweets
                 continue
 
-        logger.info(f"Webhook processing complete: {processed_count}/{len(articles)} articles processed")
+        logger.info(f"Webhook processing complete: {processed_count}/{len(generated_tweets)} tweets processed")
         return {
             "statusCode": 200,
             "body": json.dumps(
                 {
                     "message": "Processing complete",
                     "processed": processed_count,
-                    "total": len(articles),
+                    "total": len(generated_tweets),
                 }
             ),
         }
