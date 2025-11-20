@@ -4,7 +4,7 @@ import sys
 from typing import Any, Dict
 
 
-def vercel_handler(req: Any) -> Dict[str, Any]:
+def handler(req: Any) -> Dict[str, Any]:
     """
     Minimal test handler that doesn't import anything.
     
