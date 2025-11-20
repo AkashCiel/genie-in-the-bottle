@@ -2,18 +2,18 @@
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, Request
 
-from src.database.external_db import fetch_articles_by_user_and_date
-from src.database.internal_db import (
+from src.database.handle_tweets_data import (
     create_tweet_record,
     get_tweet_by_telegram_message_id,
     update_approval_status,
     update_post_status,
     update_telegram_message_id,
 )
+from src.database.read_juggernaut_feeds import fetch_articles_by_user_and_date
 from src.openai_client import OpenAIClient
 from src.telegram.bot import (
     parse_telegram_webhook,

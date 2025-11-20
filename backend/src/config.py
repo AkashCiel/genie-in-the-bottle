@@ -1,7 +1,6 @@
 """Configuration management for environment variables."""
 
 import os
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -72,20 +71,14 @@ class Config:
             raise ValueError("TELEGRAM_CHAT_ID environment variable is required")
         return chat_id
 
-    # External Database (Juggernaut/Neon) Configuration
+    # Neon Database Configuration
     @property
     def external_db_url(self) -> str:
-        """External Neon database connection URL."""
+        """Neon database connection URL."""
         url = os.getenv("EXTERNAL_DB_URL")
         if not url:
             raise ValueError("EXTERNAL_DB_URL environment variable is required")
         return url
-
-    # Internal Database Configuration (placeholder - to be configured later)
-    @property
-    def internal_db_url(self) -> Optional[str]:
-        """Internal database connection URL (placeholder)."""
-        return os.getenv("INTERNAL_DB_URL")
 
 
 # Global config instance
