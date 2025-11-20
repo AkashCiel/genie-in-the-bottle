@@ -35,7 +35,7 @@ def fetch_articles_by_user_and_date(user_id: str, created_at: str) -> List[Dict[
     logger.info("Fetching articles for user_id=%s, created_at=%s", user_id, created_at)
     query = """
         SELECT curated_articles
-        FROM your_table_name
+        FROM curated_feeds
         WHERE user_id = %s AND created_at = %s
         LIMIT 1
     """
