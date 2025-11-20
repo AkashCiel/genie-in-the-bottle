@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def fetch_articles_by_user_and_date(user_id: str, created_at: str) -> List[Dict[str, Any]]:
     """
-    Fetch curated articles from external Neon database.
+    Fetch curated articles from juggernaut feeds database.
 
     Args:
         user_id: User ID to query.
