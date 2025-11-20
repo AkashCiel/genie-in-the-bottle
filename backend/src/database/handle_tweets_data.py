@@ -16,6 +16,7 @@ def create_tweet_record(
     article_id: str,
     article_title: str,
     tweet_text: str,
+    web_url: Optional[str] = None,
     telegram_message_id: Optional[str] = None,
 ) -> str:
     """Insert a tweet record with pending statuses and return its ID."""
@@ -24,16 +25,17 @@ def create_tweet_record(
             article_id,
             article_title,
             tweet_text,
+            web_url,
             approval_status,
             post_status,
             telegram_message_id
         )
-        VALUES (%s, %s, %s, 'pending', 'pending', %s)
+        VALUES (%s, %s, %s, %s, 'pending', 'pending', %s)
         RETURNING id
     """
 
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute(query, (article_id, article_title, tweet_text, telegram_message_id))
+        cursor.execute(query, (article_id, article_title, tweet_text, web_url, telegram_message_id))
         record_id = cursor.fetchone()[0]
         conn.commit()
         logger.info("Created tweet record %s for article_id=%s", record_id, article_id)

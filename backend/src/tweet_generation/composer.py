@@ -10,9 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 BATCH_SYSTEM_PROMPT = """You are a social media content creator focused on AI safety and existential risks. 
-Your task is to create concise, engaging tweets that highlight important developments in two broad themes - abuse of AI by bad actors, and signs of AI misalignment. 
-The tweets should be informative, urgent but not alarmist,
-and encourage awareness of these critical issues.
+Create concise tweets, within 200 characters, from the provided article summaries. Keep your language direct and to the point.
+The philosophy is to raise awareness about two broad themes - abuse of AI by bad actors, and signs of AI misalignment.
 
 You will receive multiple articles. Generate ONE tweet per article.
 
@@ -24,17 +23,8 @@ The JSON format must be:
   ...
 }
 
-Where the keys are the exact article IDs provided, and values are the generated tweet text (under 280 characters each).
+Where the keys are the exact article IDs provided, and values are the generated tweet text (under 200 characters each).
 Use clear, accessible language."""
-
-USER_PROMPT_TEMPLATE = """Create a tweet about this article:
-
-Title: {title}
-Summary: {trail_text}
-URL: {url}
-Published: {published_date}
-
-Generate a compelling tweet that captures the key risk or development mentioned in this article."""
 
 
 def aggregate_articles_for_batch_generation(articles: List[Dict[str, Any]]) -> str:

@@ -98,6 +98,7 @@ async def juggernaut_webhook(request: Request) -> Dict[str, Any]:
                 article_id=article_id,
                 article_title=article.get("title", ""),
                 tweet_text=tweet_text,
+                web_url=article.get("webUrl", ""),
             )
 
             telegram_message_id = send_tweet_for_approval(
@@ -155,11 +156,16 @@ async def telegram_webhook(request: Request) -> Dict[str, Any]:
 
     update_approval_status(record_id, "approved")
     original_tweet = tweet_record.get("tweet_text", "")
+    web_url = tweet_record.get("web_url", "")
 
     if lower_text in {"/approve", "approve", "yes"}:
         tweet_to_post = original_tweet
     else:
         tweet_to_post = reply_text
+
+    # Append web URL if available
+    if web_url:
+        tweet_to_post = f"{tweet_to_post}\n{web_url}"
 
     try:
         x_tweet_id = post_tweet(tweet_to_post)
