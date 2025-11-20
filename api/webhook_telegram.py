@@ -2,15 +2,29 @@
 
 import json
 import logging
+import sys
+import traceback
 from typing import Any, Dict
 
-from src.database.internal_db import get_tweet_by_telegram_message_id, update_approval_status, update_post_status
-from src.telegram.bot import parse_telegram_webhook, send_status_notification
-from src.x_platform.client import post_tweet
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging to output to stdout/stderr (captured by Vercel)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
+
+# Try to import modules and log any import errors
+try:
+    from src.database.internal_db import get_tweet_by_telegram_message_id, update_approval_status, update_post_status
+    from src.telegram.bot import parse_telegram_webhook, send_status_notification
+    from src.x_platform.client import post_tweet
+    logger.info("All modules imported successfully")
+except Exception as e:
+    logger.error(f"Failed to import modules: {e}")
+    logger.error(traceback.format_exc())
+    # Re-raise to fail fast and show error in Vercel
+    raise
 
 
 def handler(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -102,9 +116,10 @@ def handler(request: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Telegram webhook handler error: {e}")
+        logger.error(traceback.format_exc())
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": str(e)}),
+            "body": json.dumps({"error": str(e), "traceback": traceback.format_exc()}),
         }
 
 
@@ -137,8 +152,12 @@ def vercel_handler(req: Any) -> Dict[str, Any]:
         return handler(request_dict)
     except Exception as e:
         logger.error(f"Error in vercel_handler: {e}")
+        logger.error(traceback.format_exc())
+        # Also print to stderr for Vercel to capture
+        print(f"ERROR: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": str(e)}),
+            "body": json.dumps({"error": str(e), "traceback": traceback.format_exc()}),
         }
 
