@@ -1,4 +1,5 @@
 .env
 test_*
 .venv
+uv.lock
 

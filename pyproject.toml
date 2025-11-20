@@ -5,11 +5,13 @@ description = "Scripts for posting AI risk updates to X"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "fastapi",
     "python-dotenv",
     "tweepy",
     "openai",
     "psycopg2-binary",
     "requests",
+    "uvicorn",
 ]
 
 [tool.uv]
