@@ -7,6 +7,10 @@
     {
       "source": "/api/webhook/telegram",
       "destination": "/api/webhook_telegram.py"
+    },
+    {
+      "source": "/api/test",
+      "destination": "/api/test.py"
     }
   ]
 }

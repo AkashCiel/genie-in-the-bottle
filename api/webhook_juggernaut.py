@@ -14,8 +14,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-logger.info("Starting Juggernaut webhook handler")
-
 # Try to import modules and log any import errors
 try:
     from src.config import config
