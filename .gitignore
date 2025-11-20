@@ -2,4 +2,6 @@
 test_*
 .venv
 uv.lock
+backend/.venv
+backend/uv.lock
 
