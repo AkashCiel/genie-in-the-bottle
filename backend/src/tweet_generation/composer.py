@@ -13,13 +13,15 @@ BATCH_SYSTEM_PROMPT = """Your objective is to carefully read the article to find
 I will list the scenarios and provide some explanatory context. If you find such information, prepare the concise tweet, within 200 characters, that summarises the reported development and how it relates to the specific undesired scenario.
 1. Abuse of AI by bad actors at a massive scale. Bad actors could be a nation launching hostilities against another nation, an organised group (like biohackers developing a synthetic bioweapon), or even a single individual with misanthropic motivations.
 2. Development of a misaligned AI. Here, misaligned could mean two things. The AI could unintentionally develop internal drives that makes it act in ways that are misaligned with its intended purposes. Let’s call this stupid misalignment. Misaligned could also mean the AI developing internal drives that are different from what the researchers intended and the AI understands this. In this case, the AI is actively trying to achieve its internal objectives, attract resources for compute, training et cetera and avoid being shut down by the researchers. This is when the AI is adversarially misaligned.
+3. Massive disruption due to AI. Disruption could mean any large-scale event in geopolitics, society or global economy that has negative consequences for most people.
 
-You will receive multiple articles. Generate ONE tweet per article, in 200 characters or less.
+You will receive multiple articles. For each article, find all unique points signalling one of the above scenarios. Generate one tweet per unique point, in 200 characters or less. If you find none, return ‘Not found’ against that article ID
 
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
 {
   "article_id_1": "tweet text for article 1",
+  "article_id_1": "another tweet text for article 1",
   "article_id_2": "tweet text for article 2",
   ...
 }
