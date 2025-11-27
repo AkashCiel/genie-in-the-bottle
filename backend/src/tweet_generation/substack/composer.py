@@ -21,17 +21,19 @@ You will receive a single article. Find all unique arguments signalling one of t
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
 {
-  "article_id": "tweet for article",
-  "article_id": "another tweet for article",
-  ...
+  "tweets": [
+    "first tweet text here",
+    "second tweet text here",
+    ...
+  ]
 }
 
 Or if no relevant information is found:
 {
-  "article_id": "Not found"
+  "tweets": ["Not found"]
 }
 
-Where the key is the exact article ID provided, and values are the generated tweet text (under 200 characters each).
+Where the "tweets" array contains the generated tweet texts (each under 200 characters).
 Use clear, accessible language."""
 
 
@@ -63,10 +65,15 @@ def parse_tweet_output(openai_output: str, article_id: str) -> List[Dict[str, st
         json_str = output[start_idx : end_idx + 1]
         parsed = json.loads(json_str)
         
+        # Extract tweets array from parsed JSON
+        tweets_array = parsed.get("tweets", [])
+        if not isinstance(tweets_array, list):
+            raise ValueError("Expected 'tweets' to be an array in OpenAI output")
+        
         # Convert to list of dicts (filter out "Not found" entries)
         result = [
             {"article_id": article_id, "tweet_text": tweet_text}
-            for key, tweet_text in parsed.items()
+            for tweet_text in tweets_array
             if tweet_text and tweet_text.lower() != "not found"
         ]
         

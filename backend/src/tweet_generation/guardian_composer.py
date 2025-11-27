@@ -20,13 +20,17 @@ You will receive multiple articles. For each article, find all unique points sig
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
 {
-  "article_id_1": "tweet text for article 1",
-  "article_id_1": "another tweet text for article 1",
-  "article_id_2": "tweet text for article 2",
+  "article_id_1": ["first tweet for article 1", "second tweet for article 1"],
+  "article_id_2": ["tweet for article 2"],
   ...
 }
 
-Where the keys are the exact article IDs provided, and values are the generated tweet text (under 200 characters each).
+Or if no relevant information is found for an article:
+{
+  "article_id_1": ["Not found"]
+}
+
+Where the keys are the exact article IDs provided, and values are arrays of generated tweet texts (each under 200 characters).
 Use clear, accessible language."""
 
 
@@ -78,10 +82,17 @@ def parse_batch_tweet_output(openai_output: str) -> List[Dict[str, str]]:
         parsed = json.loads(json_str)
         
         # Convert to list of dicts
-        result = [
-            {"article_id": article_id, "tweet_text": tweet_text}
-            for article_id, tweet_text in parsed.items()
-        ]
+        # Each article_id maps to an array of tweets
+        result = []
+        for article_id, tweets_array in parsed.items():
+            # Ensure tweets_array is a list
+            if not isinstance(tweets_array, list):
+                tweets_array = [tweets_array] if tweets_array else []
+            
+            # Filter out "Not found" entries and create dict entries
+            for tweet_text in tweets_array:
+                if tweet_text and tweet_text.lower() != "not found":
+                    result.append({"article_id": article_id, "tweet_text": tweet_text})
         
         logger.info(f"Successfully parsed {len(result)} tweets from batch output")
         return result

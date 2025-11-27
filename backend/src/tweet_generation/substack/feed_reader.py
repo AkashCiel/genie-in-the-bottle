@@ -1,11 +1,16 @@
 """Functions for reading and parsing Substack RSS feeds."""
 
 import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 import feedparser
 
 logger = logging.getLogger(__name__)
+
+# Project root: Use GITHUB_WORKSPACE in CI, otherwise calculate from file location
+_PROJECT_ROOT = Path(os.getenv("GITHUB_WORKSPACE"))
 
 
 def read_substack_feed(feed_url: str) -> List[Dict[str, Any]]:
@@ -47,19 +52,17 @@ def load_substack_accounts(config_path: str = "backend/config/substack_accounts.
     Load Substack account names from config file.
     
     Args:
-        config_path: Path to the YAML config file.
+        config_path: Path to the YAML config file (relative to project root if not absolute).
         
     Returns:
         List of account names.
     """
     import yaml
-    import os
     
     # Handle both absolute and relative paths
     if not os.path.isabs(config_path):
-        # Try to find the config relative to the project root
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        config_path = os.path.join(project_root, config_path)
+        # Resolve relative to project root
+        config_path = str(_PROJECT_ROOT / config_path)
     
     try:
         with open(config_path, "r", encoding="utf-8") as f:
