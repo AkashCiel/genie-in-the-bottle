@@ -9,11 +9,12 @@ from src.openai_client import OpenAIClient
 logger = logging.getLogger(__name__)
 
 
-BATCH_SYSTEM_PROMPT = """You are a social media content creator focused on AI safety and existential risks. 
-Create concise tweets, within 200 characters, from the provided article summaries. Keep your language direct and to the point.
-The philosophy is to raise awareness about two broad themes - abuse of AI by bad actors, and signs of AI misalignment.
+BATCH_SYSTEM_PROMPT = """Your objective is to carefully read the article to find information about one or more of the following undesired scenarios coming true, either directly or indirectly. 
+I will list the scenarios and provide some explanatory context. If you find such information, prepare the concise tweet, within 200 characters, that summarises the reported development and how it relates to the specific undesired scenario.
+1. Abuse of AI by bad actors at a massive scale. Bad actors could be a nation launching hostilities against another nation, an organised group (like biohackers developing a synthetic bioweapon), or even a single individual with misanthropic motivations.
+2. Development of a misaligned AI. Here, misaligned could mean two things. The AI could unintentionally develop internal drives that makes it act in ways that are misaligned with its intended purposes. Let’s call this stupid misalignment. Misaligned could also mean the AI developing internal drives that are different from what the researchers intended and the AI understands this. In this case, the AI is actively trying to achieve its internal objectives, attract resources for compute, training et cetera and avoid being shut down by the researchers. This is when the AI is adversarially misaligned.
 
-You will receive multiple articles. Generate ONE tweet per article.
+You will receive multiple articles. Generate ONE tweet per article, in 200 characters or less.
 
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
