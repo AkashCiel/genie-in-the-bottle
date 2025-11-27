@@ -4,8 +4,9 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib.parse import quote
 
-import feedparser
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,10 @@ _PROJECT_ROOT = Path(os.getenv("GITHUB_WORKSPACE"))
 
 def read_substack_feed(feed_url: str) -> List[Dict[str, Any]]:
     """
-    Read and parse a Substack RSS feed.
+    Read and parse a Substack RSS feed using rss2json API.
+    
+    Uses rss2json.com API to convert RSS to JSON, which handles malformed XML
+    and encoding issues better than direct feedparser parsing.
     
     Args:
         feed_url: URL of the Substack RSS feed (format: https://<account>.substack.com/feed)
@@ -24,17 +28,32 @@ def read_substack_feed(feed_url: str) -> List[Dict[str, Any]]:
         List of article dictionaries with keys: title, link, content
     """
     try:
-        feed = feedparser.parse(feed_url)
+        # Use rss2json API to convert RSS to JSON (handles malformed XML better)
+        api_url = f"https://api.rss2json.com/v1/api.json?rss_url={quote(feed_url, safe='')}"
         
-        if feed.bozo:
-            logger.warning(f"Feed parsing warnings for {feed_url}: {feed.bozo_exception}")
+        logger.debug(f"Fetching RSS feed via rss2json API: {api_url}")
+        response = requests.get(api_url, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("status") != "ok":
+            error_msg = data.get("message", "Unknown error from rss2json API")
+            raise ValueError(f"rss2json API returned error: {error_msg}")
+        
+        items = data.get("items", [])
+        if not items:
+            logger.warning(f"No items found in RSS feed: {feed_url}")
+            return []
         
         articles = []
-        for entry in feed.entries:
+        for item in items:
+            # rss2json returns: title, link, description (content), content (sometimes), pubDate, etc.
             article = {
-                "title": entry.get("title", ""),
-                "link": entry.get("link", ""),
-                "content": entry.get("content", [{}])[0].get("value", "") if entry.get("content") else "",
+                "title": item.get("title", ""),
+                "link": item.get("link", ""),
+                # Use 'content' if available, otherwise fall back to 'description'
+                "content": item.get("content", "") or item.get("description", ""),
             }
             articles.append(article)
             logger.debug(f"Parsed article: {article['title']}")
@@ -42,6 +61,9 @@ def read_substack_feed(feed_url: str) -> List[Dict[str, Any]]:
         logger.info(f"Successfully parsed {len(articles)} articles from {feed_url}")
         return articles
         
+    except requests.RequestException as e:
+        logger.error(f"HTTP error reading Substack feed {feed_url}: {e}")
+        raise
     except Exception as e:
         logger.error(f"Error reading Substack feed {feed_url}: {e}")
         raise
