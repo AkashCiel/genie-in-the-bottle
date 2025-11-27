@@ -16,7 +16,7 @@ I will list the scenarios and provide some explanatory context. If you find such
 2. Development of a misaligned AI. Here, misaligned could mean two things. The AI could unintentionally develop internal drives that makes it act in ways that are misaligned with its intended purposes. Let's call this stupid misalignment. Misaligned could also mean the AI developing internal drives that are different from what the researchers intended and the AI understands this. In this case, the AI is actively trying to achieve its internal objectives, attract resources for compute, training et cetera and avoid being shut down by the researchers. This is when the AI is adversarially misaligned.
 3. Massive disruption due to AI. Disruption could mean any large-scale event in geopolitics, society or global economy that has negative consequences for most people.
 
-You will receive a single article. Find all unique points signalling one of the above scenarios. Generate one tweet per unique point, in 200 characters or less. If you find none, return 'Not found' as the value.
+You will receive a single article. Find all unique arguments signalling one of the above scenarios. Generate one tweet per argument, in 200 characters or less. If you find none, return 'Not found' as the value.
 
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
