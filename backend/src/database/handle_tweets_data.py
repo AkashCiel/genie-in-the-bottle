@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Set
 from psycopg2.extras import RealDictCursor
 
 from src.database.db_connection import get_connection
+from src.telegram.bot import send_tweet_for_approval
 
 logger = logging.getLogger(__name__)
 
@@ -120,4 +121,34 @@ def get_all_existing_web_urls() -> Set[str]:
         web_urls = {row[0] for row in results}
         logger.info(f"Loaded {len(web_urls)} existing web URLs from database")
         return web_urls
+
+
+def send_earliest_queued_tweet_for_approval() -> None:
+    """
+    Find the earliest queued tweet and send it to Telegram for approval.
+    Updates its approval_status to 'pending'.
+    """
+    try:
+        queued_tweet = get_earliest_queued_tweet()
+        if not queued_tweet:
+            logger.info("No queued tweets found")
+            return
+        
+        record_id = str(queued_tweet["id"])
+        tweet_text = queued_tweet.get("tweet_text", "")
+        article_id = queued_tweet.get("article_id", "")
+        web_url = queued_tweet.get("web_url", "")
+        
+        telegram_message_id = send_tweet_for_approval(
+            tweet_text=tweet_text,
+            article_id=article_id,
+            web_url=web_url,
+        )
+        
+        update_telegram_message_id(record_id, telegram_message_id)
+        update_approval_status(record_id, "pending")
+        logger.info("Sent earliest queued tweet for approval (record_id=%s)", record_id)
+        
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to send earliest queued tweet for approval: %s", exc)
 

@@ -9,12 +9,9 @@ from typing import Any, Dict
 from src.database.handle_tweets_data import (
     create_tweet_record,
     get_all_existing_web_urls,
-    get_earliest_queued_tweet,
-    update_approval_status,
-    update_telegram_message_id,
+    send_earliest_queued_tweet_for_approval,
 )
 from src.openai_client import OpenAIClient
-from src.telegram.bot import send_tweet_for_approval
 from src.tweet_generation.substack.composer import generate_tweet_single
 from src.tweet_generation.substack.feed_reader import (
     get_substack_feed_url,
@@ -73,7 +70,7 @@ def process_substack_feeds() -> Dict[str, Any]:
         if not new_articles:
             logger.info("No new articles to process")
             # Still send earliest queued tweet if any exist
-            _send_earliest_queued_tweet_for_approval()
+            send_earliest_queued_tweet_for_approval()
             return {"message": "No new articles", "processed": 0}
         
         # Process articles sequentially
@@ -141,7 +138,7 @@ def process_substack_feeds() -> Dict[str, Any]:
         logger.info(f"Created {total_tweets_generated} tweet records with queued status from {processed_count} articles")
         
         # Send earliest queued tweet for approval
-        _send_earliest_queued_tweet_for_approval()
+        send_earliest_queued_tweet_for_approval()
         
         return {
             "message": "Processing complete",
@@ -153,33 +150,6 @@ def process_substack_feeds() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error processing Substack feeds: {e}")
         raise
-
-
-def _send_earliest_queued_tweet_for_approval() -> None:
-    """Find the earliest queued tweet and send it to Telegram for approval."""
-    try:
-        queued_tweet = get_earliest_queued_tweet()
-        if not queued_tweet:
-            logger.info("No queued tweets found")
-            return
-        
-        record_id = str(queued_tweet["id"])
-        tweet_text = queued_tweet.get("tweet_text", "")
-        article_id = queued_tweet.get("article_id", "")
-        web_url = queued_tweet.get("web_url", "")
-        
-        telegram_message_id = send_tweet_for_approval(
-            tweet_text=tweet_text,
-            article_id=article_id,
-            web_url=web_url,
-        )
-        
-        update_telegram_message_id(record_id, telegram_message_id)
-        update_approval_status(record_id, "pending")
-        logger.info(f"Sent earliest queued tweet for approval (record_id={record_id})")
-        
-    except Exception as e:
-        logger.error(f"Failed to send earliest queued tweet for approval: {e}")
 
 
 if __name__ == "__main__":
