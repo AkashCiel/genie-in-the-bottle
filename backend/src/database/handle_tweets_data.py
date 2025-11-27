@@ -16,7 +16,7 @@ def create_tweet_record(
     article_id: str,
     article_title: str,
     tweet_text: str,
-    web_url: Optional[str] = None,
+    web_url: str,
     telegram_message_id: Optional[str] = None,
 ) -> str:
     """Insert a tweet record with pending statuses and return its ID."""

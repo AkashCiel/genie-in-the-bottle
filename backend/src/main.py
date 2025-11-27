@@ -93,18 +93,23 @@ async def juggernaut_webhook(request: Request) -> Dict[str, Any]:
             logger.warning("Article ID %s from OpenAI output not found in DB results", article_id)
             continue
 
+        web_url = article.get("webUrl")
+        if not web_url:
+            logger.warning("Article %s missing webUrl – skipping", article_id)
+            continue
+
         try:
             record_id = create_tweet_record(
                 article_id=article_id,
                 article_title=article.get("title", ""),
                 tweet_text=tweet_text,
-                web_url=article.get("webUrl", ""),
+                web_url=web_url,
             )
 
             telegram_message_id = send_tweet_for_approval(
-                article_summary=article.get("article_summary", ""),
                 tweet_text=tweet_text,
                 article_id=article_id,
+                web_url=web_url,
             )
 
             update_telegram_message_id(record_id, telegram_message_id)

@@ -1,7 +1,7 @@
 """Functions for sending and receiving Telegram messages."""
 
 import logging
-from typing import Optional
+from html import escape
 
 import requests
 
@@ -13,17 +13,17 @@ TELEGRAM_API_BASE = "https://api.telegram.org/bot"
 
 
 def send_tweet_for_approval(
-    article_summary: str,
     tweet_text: str,
     article_id: str,
+    web_url: str,
 ) -> str:
     """
     Send a tweet to Telegram for approval.
 
     Args:
-        article_summary: Article summary (trailText from external DB).
         tweet_text: Generated tweet text.
         article_id: Guardian article ID for reference.
+        web_url: Link to the full article.
 
     Returns:
         Telegram message ID.
@@ -32,14 +32,19 @@ def send_tweet_for_approval(
         Exception: If sending message fails.
     """
     try:
-        message = f"{article_summary}\n\n{tweet_text}"
+        message = escape(tweet_text)
+        safe_url = escape(web_url, quote=True)
+        message = f"{message}\n<a href=\"{safe_url}\">Read full article here</a>"
+
         url = f"{TELEGRAM_API_BASE}{config.telegram_bot_token}/sendMessage"
         payload = {
             "chat_id": config.telegram_chat_id,
             "text": message,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
         }
 
-        logger.info(f"Sending tweet for approval to Telegram (article_id={article_id})")
+        logger.info("Sending tweet for approval to Telegram (article_id=%s)", article_id)
         response = requests.post(url, json=payload, timeout=10)
         response.raise_for_status()
 
@@ -48,11 +53,11 @@ def send_tweet_for_approval(
             raise Exception(f"Telegram API error: {result.get('description')}")
 
         message_id = str(result["result"]["message_id"])
-        logger.info(f"Successfully sent message to Telegram (message_id={message_id})")
+        logger.info("Successfully sent message to Telegram (message_id=%s)", message_id)
         return message_id
 
-    except Exception as e:
-        logger.error(f"Failed to send message to Telegram: {e}")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to send message to Telegram: %s", exc)
         raise
 
 
