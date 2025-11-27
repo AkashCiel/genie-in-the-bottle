@@ -18,8 +18,9 @@ def create_tweet_record(
     tweet_text: str,
     web_url: str,
     telegram_message_id: Optional[str] = None,
+    approval_status: str = "queued",
 ) -> str:
-    """Insert a tweet record with pending statuses and return its ID."""
+    """Insert a tweet record with specified approval status and return its ID."""
     query = f"""
         INSERT INTO {TWEETS_TABLE} (
             article_id,
@@ -30,15 +31,15 @@ def create_tweet_record(
             post_status,
             telegram_message_id
         )
-        VALUES (%s, %s, %s, %s, 'pending', 'pending', %s)
+        VALUES (%s, %s, %s, %s, %s, 'pending', %s)
         RETURNING id
     """
 
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute(query, (article_id, article_title, tweet_text, web_url, telegram_message_id))
+        cursor.execute(query, (article_id, article_title, tweet_text, web_url, approval_status, telegram_message_id))
         record_id = cursor.fetchone()[0]
         conn.commit()
-        logger.info("Created tweet record %s for article_id=%s", record_id, article_id)
+        logger.info("Created tweet record %s for article_id=%s with approval_status=%s", record_id, article_id, approval_status)
         return str(record_id)
 
 
@@ -93,4 +94,19 @@ def update_telegram_message_id(record_id: str, telegram_message_id: str) -> None
         cursor.execute(query, (telegram_message_id, record_id))
         conn.commit()
         logger.info("Stored telegram_message_id for %s", record_id)
+
+
+def get_earliest_queued_tweet() -> Optional[Dict[str, Any]]:
+    """Fetch the earliest tweet with approval_status='queued', sorted by created_at."""
+    query = f"""
+        SELECT *
+        FROM {TWEETS_TABLE}
+        WHERE approval_status = 'queued'
+        ORDER BY created_at ASC
+        LIMIT 1
+    """
+    with get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query)
+        record = cursor.fetchone()
+        return dict(record) if record else None
 

@@ -1,4 +1,4 @@
-"""Functions for generating tweets from Guardian articles."""
+"""Functions for generating tweets from Guardian articles (Juggernaut feeds)."""
 
 import json
 import logging
