@@ -16,48 +16,32 @@ I will list the scenarios and provide some explanatory context. If you find such
 2. Development of a misaligned AI. Here, misaligned could mean two things. The AI could unintentionally develop internal drives that makes it act in ways that are misaligned with its intended purposes. Let's call this stupid misalignment. Misaligned could also mean the AI developing internal drives that are different from what the researchers intended and the AI understands this. In this case, the AI is actively trying to achieve its internal objectives, attract resources for compute, training et cetera and avoid being shut down by the researchers. This is when the AI is adversarially misaligned.
 3. Massive disruption due to AI. Disruption could mean any large-scale event in geopolitics, society or global economy that has negative consequences for most people.
 
-You will receive multiple articles. For each article, find all unique points signalling one of the above scenarios. Generate one tweet per unique point, in 200 characters or less. If you find none, return 'Not found' against that article ID
+You will receive a single article. Find all unique points signalling one of the above scenarios. Generate one tweet per unique point, in 200 characters or less. If you find none, return 'Not found' as the value.
 
 IMPORTANT: You must return your output as a valid JSON object ONLY, with no additional text before or after.
 The JSON format must be:
 {
-  "article_id_1": "tweet text for article 1",
-  "article_id_1": "another tweet text for article 1",
-  "article_id_2": "tweet text for article 2",
+  "article_id": "tweet for article",
+  "article_id": "another tweet for article",
   ...
 }
 
-Where the keys are the exact article IDs provided, and values are the generated tweet text (under 200 characters each).
+Or if no relevant information is found:
+{
+  "article_id": "Not found"
+}
+
+Where the key is the exact article ID provided, and values are the generated tweet text (under 200 characters each).
 Use clear, accessible language."""
 
 
-def aggregate_substack_articles_for_batch_generation(articles: List[Dict[str, Any]]) -> str:
+def parse_tweet_output(openai_output: str, article_id: str) -> List[Dict[str, str]]:
     """
-    Aggregate Substack articles into a formatted string for batch tweet generation.
-    
-    Args:
-        articles: List of article dictionaries with 'title' (used as article_id), 'link', and 'content' fields.
-                 Content should be cleaned HTML.
-        
-    Returns:
-        Formatted string containing all articles for the user prompt.
-    """
-    formatted_articles = []
-    for idx, article in enumerate(articles, start=1):
-        article_id = article.get("title", "")  # Use title as article_id
-        article_content = article.get("content", "")
-        formatted_articles.append(
-            f"Article {idx}:\nID: {article_id}\nContent: {article_content}\n"
-        )
-    return "\n".join(formatted_articles)
-
-
-def parse_batch_tweet_output(openai_output: str) -> List[Dict[str, str]]:
-    """
-    Parse OpenAI batch output JSON into a list of article_id and tweet_text pairs.
+    Parse OpenAI output JSON for a single article into a list of article_id and tweet_text pairs.
     
     Args:
         openai_output: Raw OpenAI response string (should be JSON).
+        article_id: The article ID to use for all parsed tweets.
         
     Returns:
         List of dictionaries with 'article_id' and 'tweet_text' keys.
@@ -79,13 +63,14 @@ def parse_batch_tweet_output(openai_output: str) -> List[Dict[str, str]]:
         json_str = output[start_idx : end_idx + 1]
         parsed = json.loads(json_str)
         
-        # Convert to list of dicts
+        # Convert to list of dicts (filter out "Not found" entries)
         result = [
             {"article_id": article_id, "tweet_text": tweet_text}
-            for article_id, tweet_text in parsed.items()
+            for key, tweet_text in parsed.items()
+            if tweet_text and tweet_text.lower() != "not found"
         ]
         
-        logger.info(f"Successfully parsed {len(result)} tweets from batch output")
+        logger.info(f"Successfully parsed {len(result)} tweets for article {article_id}")
         return result
         
     except json.JSONDecodeError as e:
@@ -93,23 +78,23 @@ def parse_batch_tweet_output(openai_output: str) -> List[Dict[str, str]]:
         logger.error(f"Raw output: {openai_output}")
         raise ValueError(f"Invalid JSON in OpenAI output: {e}") from e
     except Exception as e:
-        logger.error(f"Unexpected error parsing batch output: {e}")
+        logger.error(f"Unexpected error parsing tweet output: {e}")
         logger.error(f"Raw output: {openai_output}")
         raise
 
 
-def generate_tweets_batch(
-    articles: List[Dict[str, Any]],
+def generate_tweet_single(
+    article: Dict[str, Any],
     openai_client: OpenAIClient,
     model: str = "gpt-4o-mini",
     temperature: float = 0.7,
 ) -> List[Dict[str, str]]:
     """
-    Generate tweets for multiple Substack articles in a single OpenAI API call.
+    Generate tweets for a single Substack article.
     
     Args:
-        articles: List of article dictionaries with 'title', 'link', and 'content' fields.
-                  Content should be raw HTML from RSS feed.
+        article: Article dictionary with 'title' (used as article_id), 'link', and 'content' fields.
+                 Content should be raw HTML from RSS feed.
         openai_client: OpenAI client instance.
         model: OpenAI model to use.
         temperature: Temperature setting for generation.
@@ -118,40 +103,34 @@ def generate_tweets_batch(
         List of dictionaries with 'article_id' and 'tweet_text' keys.
         
     Raises:
-        Exception: If batch generation fails.
+        Exception: If generation fails.
     """
     try:
-        logger.info(f"Generating tweets for {len(articles)} Substack articles in batch")
+        article_id = article.get("title", "")
+        logger.info(f"Generating tweet for Substack article: {article_id}")
         
-        # Clean content for each article
-        cleaned_articles = []
-        for article in articles:
-            cleaned_content = clean_substack_content(article.get("content", ""))
-            cleaned_articles.append({
-                "title": article.get("title", ""),
-                "link": article.get("link", ""),
-                "content": cleaned_content,
-            })
+        # Clean content
+        raw_content = article.get("content", "")
+        cleaned_content = clean_substack_content(raw_content)
         
-        # Aggregate articles into user prompt
-        user_prompt = aggregate_substack_articles_for_batch_generation(cleaned_articles)
-        full_user_prompt = f"Generate one tweet per article:\n\n{user_prompt}\n\nReturn only valid JSON as specified."
+        # Create user prompt
+        user_prompt = f"Article ID: {article_id}\nContent: {cleaned_content}\n\nReturn only valid JSON as specified."
         
         # Make OpenAI API call
         raw_output = openai_client.generate(
             system_prompt=SUBSTACK_SYSTEM_PROMPT,
-            user_prompt=full_user_prompt,
+            user_prompt=user_prompt,
             model=model,
             temperature=temperature,
         )
         
         # Parse output
-        parsed_tweets = parse_batch_tweet_output(raw_output)
+        parsed_tweets = parse_tweet_output(raw_output, article_id)
         
-        logger.info(f"Successfully generated {len(parsed_tweets)} tweets in batch")
+        logger.info(f"Successfully generated {len(parsed_tweets)} tweets for article {article_id}")
         return parsed_tweets
         
     except Exception as e:
-        logger.error(f"Failed to generate tweets in batch: {e}")
+        logger.error(f"Failed to generate tweet for article {article.get('title', 'unknown')}: {e}")
         raise
 

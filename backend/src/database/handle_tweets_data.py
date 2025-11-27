@@ -1,7 +1,7 @@
 """Functions for manipulating tweet records stored in Neon."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 from psycopg2.extras import RealDictCursor
 
@@ -109,4 +109,15 @@ def get_earliest_queued_tweet() -> Optional[Dict[str, Any]]:
         cursor.execute(query)
         record = cursor.fetchone()
         return dict(record) if record else None
+
+
+def get_all_existing_web_urls() -> Set[str]:
+    """Fetch all unique web_url values from gib_tweets table."""
+    query = f"SELECT DISTINCT web_url FROM {TWEETS_TABLE} WHERE web_url IS NOT NULL"
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute(query)
+        results = cursor.fetchall()
+        web_urls = {row[0] for row in results}
+        logger.info(f"Loaded {len(web_urls)} existing web URLs from database")
+        return web_urls
 

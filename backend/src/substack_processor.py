@@ -3,17 +3,19 @@ This can be run manually or via GitHub Actions."""
 
 import logging
 import sys
+import time
 from typing import Any, Dict
 
 from src.database.handle_tweets_data import (
     create_tweet_record,
+    get_all_existing_web_urls,
     get_earliest_queued_tweet,
     update_approval_status,
     update_telegram_message_id,
 )
 from src.openai_client import OpenAIClient
 from src.telegram.bot import send_tweet_for_approval
-from src.tweet_generation.substack.composer import generate_tweets_batch
+from src.tweet_generation.substack.composer import generate_tweet_single
 from src.tweet_generation.substack.feed_reader import (
     get_substack_feed_url,
     load_substack_accounts,
@@ -29,13 +31,17 @@ logger = logging.getLogger(__name__)
 
 def process_substack_feeds() -> Dict[str, Any]:
     """
-    Process all Substack feeds, generate tweets, and queue them.
+    Process all Substack feeds, generate tweets sequentially, and queue them.
     Then send the earliest queued tweet for approval.
     
     Returns:
         Dictionary with processing results.
     """
     try:
+        # Load existing web URLs to check for duplicates
+        existing_urls = get_all_existing_web_urls()
+        logger.info(f"Loaded {len(existing_urls)} existing URLs for duplicate checking")
+        
         accounts = load_substack_accounts()
         logger.info(f"Processing {len(accounts)} Substack accounts")
         
@@ -56,55 +62,83 @@ def process_substack_feeds() -> Dict[str, Any]:
         
         logger.info(f"Found {len(all_articles)} articles total")
         
-        # Prepare articles for batch generation
-        articles_for_generation = []
-        for article in all_articles:
-            articles_for_generation.append({
-                "title": article.get("title", ""),
-                "link": article.get("link", ""),
-                "content": article.get("content", ""),
-            })
+        # Filter out articles that already exist in database
+        new_articles = [
+            article for article in all_articles
+            if article.get("link", "") not in existing_urls
+        ]
         
-        # Generate tweets
+        logger.info(f"After duplicate filtering: {len(new_articles)} new articles to process")
+        
+        if not new_articles:
+            logger.info("No new articles to process")
+            # Still send earliest queued tweet if any exist
+            _send_earliest_queued_tweet_for_approval()
+            return {"message": "No new articles", "processed": 0}
+        
+        # Process articles sequentially
         openai_client = OpenAIClient()
-        try:
-            generated_tweets = generate_tweets_batch(articles_for_generation, openai_client)
-        except Exception as e:
-            logger.error(f"Failed to generate tweets: {e}")
-            raise
-        
-        # Create tweet records with queued status
         processed_count = 0
-        article_map = {article.get("title", ""): article for article in all_articles}
+        total_tweets_generated = 0
         
-        for tweet_data in generated_tweets:
-            article_id = tweet_data.get("article_id", "")  # This is the title
-            tweet_text = tweet_data.get("tweet_text", "")
-            article = article_map.get(article_id)
-            
-            if not article:
-                logger.warning(f"Article ID {article_id} not found in feed results")
-                continue
-            
+        for idx, article in enumerate(new_articles, start=1):
+            article_id = article.get("title", "")
             article_link = article.get("link", "")
+            
             if not article_link:
                 logger.warning(f"Article {article_id} missing link – skipping")
                 continue
             
+            logger.info(f"Processing article {idx}/{len(new_articles)}: {article_id}")
+            
             try:
-                create_tweet_record(
-                    article_id=article_id,
-                    article_title=article_id,  # Same as article_id (title)
-                    tweet_text=tweet_text,
-                    web_url=article_link,
-                    approval_status="queued",
-                )
+                # Generate tweets for this article
+                generated_tweets = generate_tweet_single(article, openai_client)
+                
+                if not generated_tweets:
+                    logger.info(f"No tweets generated for article {article_id}")
+                    # Still wait 60 seconds before next article
+                    if idx < len(new_articles):
+                        logger.info("Waiting 60 seconds before processing next article...")
+                        time.sleep(60)
+                    continue
+                
+                # Create tweet records for each generated tweet
+                for tweet_data in generated_tweets:
+                    tweet_text = tweet_data.get("tweet_text", "")
+                    if not tweet_text:
+                        continue
+                    
+                    try:
+                        create_tweet_record(
+                            article_id=article_id,
+                            article_title=article_id,  # Same as article_id (title)
+                            tweet_text=tweet_text,
+                            web_url=article_link,
+                            approval_status="queued",
+                        )
+                        total_tweets_generated += 1
+                    except Exception as e:
+                        logger.error(f"Failed to create tweet record for article {article_id}: {e}")
+                        continue
+                
                 processed_count += 1
+                logger.info(f"Successfully processed article {article_id} ({total_tweets_generated} tweets generated so far)")
+                
+                # Wait 60 seconds before processing next article (except for the last one)
+                if idx < len(new_articles):
+                    logger.info("Waiting 60 seconds before processing next article...")
+                    time.sleep(60)
+                    
             except Exception as e:
-                logger.error(f"Failed to create tweet record for article {article_id}: {e}")
+                logger.error(f"Failed to process article {article_id}: {e}")
+                # Still wait 60 seconds before next article to respect rate limits
+                if idx < len(new_articles):
+                    logger.info("Waiting 60 seconds before processing next article...")
+                    time.sleep(60)
                 continue
         
-        logger.info(f"Created {processed_count} tweet records with queued status")
+        logger.info(f"Created {total_tweets_generated} tweet records with queued status from {processed_count} articles")
         
         # Send earliest queued tweet for approval
         _send_earliest_queued_tweet_for_approval()
@@ -112,7 +146,8 @@ def process_substack_feeds() -> Dict[str, Any]:
         return {
             "message": "Processing complete",
             "processed": processed_count,
-            "total": len(generated_tweets),
+            "total_tweets": total_tweets_generated,
+            "total_articles": len(new_articles),
         }
         
     except Exception as e:
