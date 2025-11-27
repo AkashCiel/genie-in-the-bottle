@@ -1,0 +1,5 @@
+# Substack accounts to monitor for new articles
+# RSS feed URLs follow format: https://<account_name>.substack.com/feed
+accounts:
+  - peterwildeford
+

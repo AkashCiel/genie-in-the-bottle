@@ -9,9 +9,9 @@ from fastapi import FastAPI, HTTPException, Request
 from src.database.handle_tweets_data import (
     create_tweet_record,
     get_tweet_by_telegram_message_id,
+    send_earliest_queued_tweet_for_approval,
     update_approval_status,
     update_post_status,
-    update_telegram_message_id,
 )
 from src.database.read_juggernaut_feeds import fetch_articles_by_user_and_date
 from src.openai_client import OpenAIClient
@@ -20,7 +20,7 @@ from src.telegram.bot import (
     send_status_notification,
     send_tweet_for_approval,
 )
-from src.tweet_generation.composer import generate_tweets_batch
+from src.tweet_generation.guardian_composer import generate_tweets_batch
 from src.x_platform.client import post_tweet
 
 logger = logging.getLogger(__name__)
@@ -99,25 +99,21 @@ async def juggernaut_webhook(request: Request) -> Dict[str, Any]:
             continue
 
         try:
-            record_id = create_tweet_record(
+            create_tweet_record(
                 article_id=article_id,
                 article_title=article.get("title", ""),
                 tweet_text=tweet_text,
                 web_url=web_url,
+                approval_status="queued",
             )
-
-            telegram_message_id = send_tweet_for_approval(
-                tweet_text=tweet_text,
-                article_id=article_id,
-                web_url=web_url,
-            )
-
-            update_telegram_message_id(record_id, telegram_message_id)
             processed_count += 1
 
         except Exception as exc:  # noqa: BLE001
             logger.error("Failed to process tweet for article %s: %s", article_id, exc)
             continue
+
+    # Send earliest queued tweet for approval
+    send_earliest_queued_tweet_for_approval()
 
     return {
         "message": "Processing complete",
@@ -157,6 +153,8 @@ async def telegram_webhook(request: Request) -> Dict[str, Any]:
 
     if lower_text in {"/reject", "reject", "no"}:
         update_approval_status(record_id, "rejected")
+        # Send next queued tweet for approval
+        send_earliest_queued_tweet_for_approval()
         return {"message": "Tweet rejected"}
 
     update_approval_status(record_id, "approved")
@@ -176,6 +174,10 @@ async def telegram_webhook(request: Request) -> Dict[str, Any]:
         x_tweet_id = post_tweet(tweet_to_post)
         update_post_status(record_id, "posted", x_tweet_id)
         send_status_notification(f"✅ Tweet posted successfully!\nTweet ID: {x_tweet_id}")
+        
+        # Send next queued tweet for approval
+        send_earliest_queued_tweet_for_approval()
+        
         return {"message": "Tweet posted", "tweet_id": x_tweet_id}
     except Exception as exc:  # noqa: BLE001
         update_post_status(record_id, "failed")
