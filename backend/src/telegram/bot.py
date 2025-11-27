@@ -2,6 +2,7 @@
 
 import logging
 from html import escape
+from typing import Optional
 
 import requests
 
