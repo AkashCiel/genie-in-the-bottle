@@ -128,6 +128,9 @@ def send_earliest_queued_tweet_for_approval() -> None:
     Find the earliest queued tweet and send it to Telegram for approval.
     Updates its approval_status to 'pending'.
     """
+    if _is_any_tweet_pending():
+        logger.info("There are pending tweets in the pipeline")
+        return
     try:
         queued_tweet = get_earliest_queued_tweet()
         if not queued_tweet:
@@ -152,3 +155,13 @@ def send_earliest_queued_tweet_for_approval() -> None:
     except Exception as exc:  # noqa: BLE001
         logger.error("Failed to send earliest queued tweet for approval: %s", exc)
 
+
+def _is_any_tweet_pending() -> bool:
+    """Check if there are any tweets with approval_status='pending'."""
+    query = f"""
+        SELECT COUNT(*) FROM {TWEETS_TABLE} WHERE approval_status = 'pending'
+    """
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchone()
+        return result[0] > 0
