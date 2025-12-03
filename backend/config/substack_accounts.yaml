@@ -2,4 +2,5 @@
 # RSS feed URLs follow format: https://<account_name>.substack.com/feed
 accounts:
   - peterwildeford
+  - oscardelaney
 
